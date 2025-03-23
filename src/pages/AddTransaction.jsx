@@ -40,7 +40,8 @@ const AddTransaction = () => {
     }
 
     if (isEdit) {
-      axios.put(`http://localhost:5000/vouchers/${isEdit.id}`, form).then(() => {
+        axios.put(`https://vouchers-backend.vercel.app/${voucher.id}`, data)
+        axios.post(`https://vouchers-backend.vercel.app/`, data).then(() => {
         alert('Transaction updated successfully!');
         navigate('/');
       }).catch((err) => {

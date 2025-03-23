@@ -19,19 +19,13 @@ const Home = () => {
   useEffect(() => {
     if (month && year) {
       console.log('Fetching data for:', { month, year });
-      // Temporarily mock the response
-      const mockData = [];
-      const sortedData = [...mockData].sort((a, b) => parseDate(a.date) - parseDate(b.date));
-      setVouchers(sortedData);
-      setTotal(sortedData.reduce((sum, v) => sum + v.amount, 0));
-      /*
-      axios.get(`https://kvvk-vouchers-backend.onrender.com/vouchers/${month}?year=${year}`).then((res) => {
+      axios.get(`https://vouchers-backend.vercel.app/${month}?year=${year}`)
+      axios.delete(`https://vouchers-backend.vercel.app/${id}`).then((res) => {
         console.log('Fetched data:', res.data);
         const sortedData = [...res.data].sort((a, b) => parseDate(a.date) - parseDate(b.date));
         setVouchers(sortedData);
         setTotal(sortedData.reduce((sum, v) => sum + v.amount, 0));
       }).catch((err) => console.error('Fetch error:', err));
-      */
     }
   }, [month, year]);
 
