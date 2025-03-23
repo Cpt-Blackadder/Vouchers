@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/Vouchers', // Matches the repository name
+  base: '/', // Matches the repository name
   css: {
     postcss: './postcss.config.cjs',
   },
