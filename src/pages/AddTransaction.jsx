@@ -23,15 +23,14 @@ const AddTransaction = () => {
 
   const [categories, setCategories] = useState([]);
   const [names, setNames] = useState([]);
-  const [customCategory, setCustomCategory] = useState('');
-  const [customName, setCustomName] = useState('');
+  const [banks, setBanks] = useState([]);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Fetch unique categories and names when the component mounts
+  // Fetch unique categories, names, and banks when the component mounts
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -51,8 +50,18 @@ const AddTransaction = () => {
       }
     };
 
+    const fetchBanks = async () => {
+      try {
+        const res = await axios.get('https://vouchers-backend.vercel.app/banks');
+        setBanks(res.data);
+      } catch (err) {
+        console.error('Error fetching banks:', err);
+      }
+    };
+
     fetchCategories();
     fetchNames();
+    fetchBanks();
   }, []);
 
   const handleChange = (e) => {
@@ -61,19 +70,13 @@ const AddTransaction = () => {
 
   const handleSubmit = () => {
     console.log('Saving form data:', form);
-    if (!form.voucherNumber || !form.date || !form.name || !form.amount || !form.month || !form.year) {
-      alert('Please fill in all required fields (Voucher Number, Date, Name, Amount, Month, Year).');
+    if (!form.voucherNumber || !form.date || !form.name || !form.bank || !form.amount || !form.category || !form.month || !form.year) {
+      alert('Please fill in all required fields (Voucher Number, Date, Name, Bank, Amount, Category, Month, Year).');
       return;
     }
 
-    const finalForm = {
-      ...form,
-      name: form.name === 'Other' ? customName : form.name,
-      category: form.category === 'Other' ? customCategory : form.category,
-    };
-
     if (isEdit) {
-      axios.put(`https://vouchers-backend.vercel.app/vouchers/${form.id}`, finalForm)
+      axios.put(`https://vouchers-backend.vercel.app/vouchers/${form.id}`, form)
         .then(() => {
           alert('Transaction updated successfully!');
           navigate('/');
@@ -84,14 +87,17 @@ const AddTransaction = () => {
           alert(`Error: ${errorMessage}`);
         });
     } else {
-      axios.post('https://vouchers-backend.vercel.app/vouchers', finalForm)
+      axios.post('https://vouchers-backend.vercel.app/vouchers', form)
         .then(() => {
-          // Add new category and name to dropdowns if they were custom
-          if (finalForm.category === customCategory && !categories.includes(customCategory)) {
-            setCategories([...categories, customCategory]);
+          // Add new category, name, and bank to dropdowns if they are new
+          if (!categories.includes(form.category)) {
+            setCategories([...categories, form.category]);
           }
-          if (finalForm.name === customName && !names.includes(customName)) {
-            setNames([...names, customName]);
+          if (!names.includes(form.name)) {
+            setNames([...names, form.name]);
+          }
+          if (!banks.includes(form.bank)) {
+            setBanks([...banks, form.bank]);
           }
           alert('Transaction saved successfully!');
           navigate('/');
@@ -135,27 +141,20 @@ const AddTransaction = () => {
           </div>
           <div>
             <label className="block text-gray-700 font-medium mb-2">Name</label>
-            <select
+            <input
+              type="text"
               name="name"
               value={form.name}
               onChange={handleChange}
+              list="namesList"
               className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="">Select Name</option>
+              placeholder="Enter or select a name"
+            />
+            <datalist id="namesList">
               {names.map((name) => (
-                <option key={name} value={name}>{name}</option>
+                <option key={name} value={name} />
               ))}
-              <option value="Other">Other</option>
-            </select>
-            {form.name === 'Other' && (
-              <input
-                type="text"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                className="w-full p-3 mt-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Enter new name"
-              />
-            )}
+            </datalist>
           </div>
           <div>
             <label className="block text-gray-700 font-medium mb-2">Bank</label>
@@ -164,9 +163,15 @@ const AddTransaction = () => {
               name="bank"
               value={form.bank}
               onChange={handleChange}
+              list="banksList"
               className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="Enter Bank Name"
+              placeholder="Enter or select a bank"
             />
+            <datalist id="banksList">
+              {banks.map((bank) => (
+                <option key={bank} value={bank} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="block text-gray-700 font-medium mb-2">Cheque Number</label>
@@ -192,27 +197,20 @@ const AddTransaction = () => {
           </div>
           <div>
             <label className="block text-gray-700 font-medium mb-2">Category</label>
-            <select
+            <input
+              type="text"
               name="category"
               value={form.category}
               onChange={handleChange}
+              list="categoriesList"
               className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="">Select Category</option>
+              placeholder="Enter or select a category"
+            />
+            <datalist id="categoriesList">
               {categories.map((category) => (
-                <option key={category} value={category}>{category}</option>
+                <option key={category} value={category} />
               ))}
-              <option value="Other">Other</option>
-            </select>
-            {form.category === 'Other' && (
-              <input
-                type="text"
-                value={customCategory}
-                onChange={(e) => setCustomCategory(e.target.value)}
-                className="w-full p-3 mt-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Enter new category"
-              />
-            )}
+            </datalist>
           </div>
           <div>
             <label className="block text-gray-700 font-medium mb-2">Month</label>
