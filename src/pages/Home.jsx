@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
@@ -9,6 +9,7 @@ const Home = () => {
   const [year, setYear] = useState(() => localStorage.getItem('selectedYear') || '');
   const [vouchers, setVouchers] = useState([]);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const months = [
@@ -16,18 +17,32 @@ const Home = () => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  useEffect(() => {
-    if (month && year) {
+  const fetchVouchers = useCallback(async () => {
+    if (month && year && year.length === 4) { // Only fetch if year is a valid 4-digit number
+      setError(null);
       console.log('Fetching data for:', { month, year });
-      axios.get(`https://vouchers-backend.vercel.app/${month}?year=${year}`)
-      axios.delete(`https://vouchers-backend.vercel.app/${id}`).then((res) => {
+      try {
+        const res = await axios.get(`https://vouchers-backend.vercel.app/vouchers/${month}?year=${year}`);
         console.log('Fetched data:', res.data);
         const sortedData = [...res.data].sort((a, b) => parseDate(a.date) - parseDate(b.date));
         setVouchers(sortedData);
         setTotal(sortedData.reduce((sum, v) => sum + v.amount, 0));
-      }).catch((err) => console.error('Fetch error:', err));
+      } catch (err) {
+        console.error('Fetch error:', err);
+        setError('Failed to fetch vouchers. Please try again later.');
+        setVouchers([]);
+        setTotal(0);
+      }
     }
   }, [month, year]);
+
+  useEffect(() => {
+    const debounceTimeout = setTimeout(() => {
+      fetchVouchers();
+    }, 500); // Wait 500ms after the last keystroke before making the API call
+
+    return () => clearTimeout(debounceTimeout); // Cleanup the timeout on unmount or when dependencies change
+  }, [fetchVouchers]);
 
   useEffect(() => {
     localStorage.setItem('selectedMonth', month);
@@ -35,9 +50,12 @@ const Home = () => {
   }, [month, year]);
 
   const handleDelete = (id) => {
-    axios.delete(`http://localhost:5000/vouchers/${id}`).then(() => {
-      setVouchers(vouchers.filter((v) => v.id !== id));
-    });
+    axios.delete(`https://vouchers-backend.vercel.app/vouchers/${id}`)
+      .then(() => {
+        setVouchers(vouchers.filter((v) => v.id !== id));
+        setTotal(vouchers.filter((v) => v.id !== id).reduce((sum, v) => sum + v.amount, 0));
+      })
+      .catch((err) => console.error('Delete error:', err));
   };
 
   const handleEdit = (voucher) => {
@@ -70,8 +88,8 @@ const Home = () => {
     doc.setFontSize(14);
     doc.setCharSpace(0.5);
     const totalText = `Total Expense:${total.toFixed(2)}`;
-    const textWidth = doc.getTextWidth(totalText);
     const pageWidth = 297;
+    const textWidth = doc.getTextWidth(totalText);
     const xPosition = (pageWidth - textWidth) / 2;
     doc.text(totalText, xPosition, 40);
 
@@ -152,7 +170,8 @@ const Home = () => {
           onChange={(e) => setYear(e.target.value)}
         />
       </div>
-      {month && year && (
+      {error && <p className="text-red-600 mb-6">{error}</p>}
+      {month && year && year.length === 4 ? (
         <>
           <div className="flex justify-between w-11/12 max-w-4xl mb-6">
             <Link to="/add" className="bg-blue-600 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700 transition">Add New Entry</Link>
@@ -160,41 +179,47 @@ const Home = () => {
           </div>
           <div className="w-11/12 max-w-4xl bg-white rounded-lg shadow-lg p-6">
             <p className="text-right text-lg font-medium text-gray-700 mb-4">Total: <span className="font-bold">{total}</span></p>
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-200 text-gray-700">
-                  <th className="border border-gray-300 p-3 font-semibold">Serial No</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Voucher Number</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Date</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Cheque Number</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Name</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Bank</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Amount</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Category</th>
-                  <th className="border border-gray-300 p-3 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vouchers.map((v, index) => (
-                  <tr key={v.id} className="hover:bg-gray-50 transition">
-                    <td className="border border-gray-300 p-3">{index + 1}</td>
-                    <td className="border border-gray-300 p-3">{v.voucherNumber}</td>
-                    <td className="border border-gray-300 p-3">{v.date}</td>
-                    <td className="border border-gray-300 p-3">{v.chequeNumber || ''}</td>
-                    <td className="border border-gray-300 p-3">{v.name}</td>
-                    <td className="border border-gray-300 p-3">{v.bank}</td>
-                    <td className="border border-gray-300 p-3">{v.amount}</td>
-                    <td className="border border-gray-300 p-3">{v.category}</td>
-                    <td className="border border-gray-300 p-3">
-                      <button onClick={() => handleEdit(v)} className="text-blue-600 hover:underline mr-3">Edit</button>
-                      <button onClick={() => handleDelete(v.id)} className="text-red-600 hover:underline">Delete</button>
-                    </td>
+            {vouchers.length > 0 ? (
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-200 text-gray-700">
+                    <th className="border border-gray-300 p-3 font-semibold">Serial No</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Voucher Number</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Date</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Cheque Number</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Name</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Bank</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Amount</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Category</th>
+                    <th className="border border-gray-300 p-3 font-semibold">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {vouchers.map((v, index) => (
+                    <tr key={v.id} className="hover:bg-gray-50 transition">
+                      <td className="border border-gray-300 p-3">{index + 1}</td>
+                      <td className="border border-gray-300 p-3">{v.voucherNumber}</td>
+                      <td className="border border-gray-300 p-3">{v.date}</td>
+                      <td className="border border-gray-300 p-3">{v.chequeNumber || ''}</td>
+                      <td className="border border-gray-300 p-3">{v.name}</td>
+                      <td className="border border-gray-300 p-3">{v.bank}</td>
+                      <td className="border border-gray-300 p-3">{v.amount}</td>
+                      <td className="border border-gray-300 p-3">{v.category}</td>
+                      <td className="border border-gray-300 p-3">
+                        <button onClick={() => handleEdit(v)} className="text-blue-600 hover:underline mr-3">Edit</button>
+                        <button onClick={() => handleDelete(v.id)} className="text-red-600 hover:underline">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-center text-gray-600">No vouchers found for the selected month and year.</p>
+            )}
           </div>
         </>
+      ) : (
+        <p className="text-gray-600">Please select a month and enter a valid 4-digit year to view vouchers.</p>
       )}
     </div>
   );

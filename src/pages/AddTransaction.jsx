@@ -4,6 +4,7 @@ import axios from 'axios';
 
 const AddTransaction = () => {
   const [form, setForm] = useState({
+    id: '', // Add id to the form state for editing
     voucherNumber: '',
     date: '',
     name: '',
@@ -26,7 +27,8 @@ const AddTransaction = () => {
     if (isEdit) {
       setForm({
         ...isEdit,
-        year: isEdit.year || '', // Use the year field directly
+        id: isEdit.id, // Add the id to the form state
+        year: isEdit.year || '',
       });
     }
   }, [isEdit]);
@@ -40,22 +42,25 @@ const AddTransaction = () => {
     }
 
     if (isEdit) {
-        axios.put(`https://vouchers-backend.vercel.app/${voucher.id}`, data)
-        axios.post(`https://vouchers-backend.vercel.app/`, data).then(() => {
-        alert('Transaction updated successfully!');
-        navigate('/');
-      }).catch((err) => {
-        console.error('Update error:', err);
-        alert('Failed to update transaction.');
-      });
+      axios.put(`https://vouchers-backend.vercel.app/vouchers/${form.id}`, form)
+        .then(() => {
+          alert('Transaction updated successfully!');
+          navigate('/');
+        })
+        .catch((err) => {
+          console.error('Update error:', err);
+          alert('Failed to update transaction.');
+        });
     } else {
-      axios.post('http://localhost:5000/vouchers', form).then(() => {
-        alert('Transaction saved successfully!');
-        navigate('/');
-      }).catch((err) => {
-        console.error('Save error:', err);
-        alert('Failed to save transaction.');
-      });
+      axios.post('https://vouchers-backend.vercel.app/vouchers', form)
+        .then(() => {
+          alert('Transaction saved successfully!');
+          navigate('/');
+        })
+        .catch((err) => {
+          console.error('Save error:', err);
+          alert('Failed to save transaction.');
+        });
     }
   };
 
